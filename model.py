@@ -8,6 +8,9 @@ m = Mystem()
 print "Loaded mystem"
 
 
+def parse_gr(gr):
+    
+
 writer = open("pairs.tsv", "w+")
 
 with open("test.txt", "r") as input_file:
@@ -17,6 +20,6 @@ with open("test.txt", "r") as input_file:
             
             if 'analysis' in w:
                 for item in w['analysis']:
-                    writer.write("\t".join([item['gr'], item['lex'], w['text']]) + "\n")
+                    writer.write("\t".join([item['gr'], item['lex'], w['text']]).encode("utf-8") + "\n")
 
 writer.close()
