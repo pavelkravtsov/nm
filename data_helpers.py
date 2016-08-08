@@ -18,7 +18,7 @@ def encode_data(sent, maxlen, vocab, vocab_size, check):
 
     for c in chars:
         if counter >= maxlen:
-            pass
+            break
         else:
             char_array = np.zeros(vocab_size, dtype=np.int)
 
@@ -32,7 +32,6 @@ def encode_data(sent, maxlen, vocab, vocab_size, check):
 
 
 def create_vocab_set():
-
     alphabet = (list(u"йцукенгшщзхъёфывапролджэячсмитьбю") +
                 list(string.ascii_lowercase) + list(string.digits) +
                 list(string.punctuation) + ['\n'])
@@ -49,11 +48,22 @@ def create_vocab_set():
     return vocab, reverse_vocab, vocab_size, check
 
 
-def read_encoded_relations(filepath):
+def load_encoded_relations(filepath, splitting=0.9):
+
     vocab, reverse_vocab, vocab_size, check = create_vocab_set()
+
+    fours = []
+
     with open(filepath, "r+") as input_file:
         for line in input_file:
             line = line.strip()
-            c4 = []
-            for word in line.split("\t"):
-                encode_data(word, 20, vocab, len(vocab), check)
+            c4 = [encode_data(word, 20, vocab, len(vocab), check) for word in line.split("\t")]
+            fours.append(np.array(c4))
+
+    fours = np.matrix(fours)
+
+    print fours
+
+    len_fours = len(fours)
+    quit()
+    # return
