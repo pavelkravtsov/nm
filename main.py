@@ -74,7 +74,7 @@ for e in xrange(nb_epoch):
     step = 1
     start = datetime.datetime.now()
 
-    lg.info('Epoch {} ---------------------'.format(e))
+    lg.info('-------- epoch {} --------'.format(e))
 
     for x_train, y_train, x_text_tr, y_text_tr in batches:
 
@@ -83,13 +83,13 @@ for e in xrange(nb_epoch):
         loss_avg = loss / step
 
         if step % 10 == 0:
-            lg.info('TRAINING step {}\tloss {}'.format(step, loss_avg))
+            lg.info('- TRAINING step {} \t loss {}'.format(step, loss_avg))
         step += 1
 
     test_loss = 0.0
     test_step = 0
 
-    lg.info("TESTING NOW ")
+    lg.info(" -- TESTING NOW -- ")
 
     for x_test_batch, y_test_batch, x_text, y_text in test_batches:
         f_ev = model.test_on_batch(x_test_batch, y_test_batch)
@@ -97,14 +97,14 @@ for e in xrange(nb_epoch):
         test_loss_avg = test_loss / test_step
         test_step += 1
 
-        lg.info('TESTING step {}\tloss {}'.format(test_step, test_loss_avg))
+        lg.info('- TESTING step {}\tloss {}'.format(test_step, test_loss_avg))
         predicted_seq = model.predict(np.array([x_test_batch[0]]))
         lg.info(
             'Shapes x {} y_true {} y_pred {}'.format(
                 x_test_batch[0].shape,
                 y_test_batch[0].shape,
-                predicted_seq.shape))
-        lg.info('Input:    \t[' + x_text[0][:maxlen] + "]")
+                predicted_seq[0].shape))
+        lg.info('Input:    \t[' + "\t".join(map(lambda x:x[:maxlen], list(x_text[0]))) + "]")
         lg.info(u'Predicted:\t[' + data_helpers.decode_data(predicted_seq, reverse_vocab) + "]")
         lg.info('----------------------------------------------------------------')
 
