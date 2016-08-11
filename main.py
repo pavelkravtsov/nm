@@ -104,8 +104,9 @@ for e in xrange(nb_epoch):
                 x_test_batch[0].shape,
                 y_test_batch[0].shape,
                 predicted_seq[0].shape))
-        lg.info('Input:    \t[' + "\t".join(map(lambda x:x[:maxlen], list(x_text[0]))) + "]")
-        lg.info(u'Predicted:\t[' + data_helpers.decode_data(predicted_seq, reverse_vocab) + "]")
+        lg.info(u'Input:       \t[' + "|".join(map(lambda x:x[:maxlen], list(x_text[0]))) + "] -> ? ")
+        lg.info(u'Expected:    \t[' + y_text[0] + "]")
+        lg.info(u'Predicted: \t[' + data_helpers.decode_data(predicted_seq, reverse_vocab) + "]")
         lg.info('----------------------------------------------------------------')
 
     stop = datetime.datetime.now()
