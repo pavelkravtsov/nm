@@ -1,4 +1,5 @@
 # coding:utf-8
+
 import string
 import numpy as np
 import pandas as pd
@@ -7,7 +8,10 @@ import math
 
 from pandas.core.frame import DataFrame
 
+# symbol we use to replace unknown symbols
 UNKNSYM = u'ξ'
+
+# symbol we use for padding
 NOSYM = u'ℵ'
 
 
