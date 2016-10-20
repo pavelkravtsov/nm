@@ -1,15 +1,16 @@
 # coding:utf-8
-
-from __future__ import division
-from __future__ import print_function
+"""
+    Character-level attempt to build recurrent neural network architecture
+    for building correct morphological forms by analogy
+"""
 
 import datetime
 import logging
-
 import numpy as np
-
 import data_helpers
 import model_all_stacked
+
+# setting logging
 
 logging.basicConfig(filename='all_results.log',
                     format='[%(asctime)s] [%(levelname)s] %(message)s',
@@ -23,9 +24,12 @@ formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
 ch.setFormatter(formatter)
 lg.addHandler(ch)
 
-np.random.seed(0123)  # for reproducibility
+# for reproducibility
 
-# set parameters:
+np.random.seed(0123)
+
+# setting parameters
+# todo: argparse
 
 subset = None
 save = False
@@ -33,29 +37,34 @@ model_name_path = 'params/model.json'
 model_weights_path = 'params/model_weights.h5'
 
 latent_dimension = 125
-
 maxlen = 25
 
 batch_size = 80
 test_batch_size = 20
+
 nb_epoch = 10
 
 lg.info('Loading data...')
 
+# loading triples and predicted words
 (x_train, y_train), (x_test, y_test) = data_helpers.load_relations()
+
+# building vocabs for chars
 vocab, reverse_vocab, vocab_size, check = data_helpers.create_vocab_set()
 
 lg.info('Build model...')
 
+# building model for predicting words
 model = model_all_stacked.construct_model(maxlen, vocab_size * 3, vocab_size, latent_dimension)
 
 lg.info('Fit model...')
 initial = datetime.datetime.now()
 
+# nb_epoch times we scan data trying to learn morphology-by-analogy
 for e in xrange(nb_epoch):
 
-    xi, yi = x_train, y_train  # data_helpers.shuffle_matrix(xt, yt)
-    xi_test, yi_test = x_test, y_test  # data_helpers.shuffle_matrix(x_test, y_test)
+    xi, yi = x_train, y_train
+    xi_test, yi_test = x_test, y_test
 
     if subset:
         batches = data_helpers.mini_batch_generator(xi[:subset], yi[:subset],
