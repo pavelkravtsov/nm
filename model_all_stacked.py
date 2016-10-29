@@ -27,3 +27,15 @@ def construct_model(maxlen, input_dimension, output_dimension, lstm_vector_outpu
     encoder.compile(loss='categorical_crossentropy', optimizer=adam)
 
     return encoder
+
+def construct_simpliest_model(maxlen, input_dimension, output_dimension, lstm_vector_output_dim):
+    input = Input(shape=(maxlen, input_dimension), name='input')
+
+    lstm_encode = SimpleRNN(output_dimension, return_sequences=True)(input)
+
+    encoder = Model(input, lstm_encode)
+
+    adam = Adam()
+    encoder.compile(loss='mse', optimizer=adam)
+
+    return encoder

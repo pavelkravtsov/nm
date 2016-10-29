@@ -24,7 +24,7 @@ def parse_gr(gr):
 
 lines = set([])
 
-with open("data/test.txt", "r") as input_file:
+with open("data/text.txt", "r") as input_file:
     logging.info("file opened")
 
     for line in input_file:
