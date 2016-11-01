@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[10]:
+# In[1]:
 
 
 import string
@@ -9,6 +9,7 @@ import numpy as np
 from random import shuffle
 import math
 import codecs
+
 
 # ## Спецсимволы
 
@@ -108,9 +109,9 @@ def create_vocab_set():
 
 # ## Генератор батчей из файла
 
-# In[9]:
+# In[3]:
 
-def mini_batch_generator(filename, vocab, vocab_size, vocab_check, maxlen, batch_size):
+def simple_batch_generator(filename, vocab, vocab_size, vocab_check, maxlen, batch_size):
     with codecs.open(filename, "rt", encoding="utf-8") as data:
         run = True
         while run:
@@ -119,7 +120,7 @@ def mini_batch_generator(filename, vocab, vocab_size, vocab_check, maxlen, batch
             for i in range(batch_size):
                 line = data.readline()
                 if line:
-                    words = line.strip(u"\n").split(",")
+                    words = line.strip("\n").split(",")
                     x_sample[i] = words[:3]
                     y_sample[i] = words[3]
                 else:
@@ -133,6 +134,36 @@ def mini_batch_generator(filename, vocab, vocab_size, vocab_check, maxlen, batch
             input_data2 = encode_data(x_sample[:, 2], maxlen, vocab, vocab_size, vocab_check)
             
             input_data = np.concatenate([input_data0, input_data1, input_data2], axis=2)
+            y_for_fitting = encode_data(y_sample, maxlen, vocab, vocab_size, vocab_check)
+
+            yield (input_data, y_for_fitting, x_sample, y_sample)
+
+
+# In[ ]:
+
+def complex_batch_generator(filename, vocab, vocab_size, vocab_check, maxlen, batch_size):
+    with codecs.open(filename, "rt", encoding="utf-8") as data:
+        run = True
+        while run:
+            x_sample = np.zeros((batch_size, 3), dtype=np.object)
+            y_sample = np.zeros((batch_size,),   dtype=np.object)
+            for i in range(batch_size):
+                line = data.readline()
+                if line:
+                    words = line.strip("\n").split(",")
+                    x_sample[i] = words[:3]
+                    y_sample[i] = words[3]
+                else:
+                    run = False
+                    break
+            if not run:
+                break
+
+            input_data0 = encode_data(x_sample[:, 0], maxlen, vocab, vocab_size, vocab_check)
+            input_data1 = encode_data(x_sample[:, 1], maxlen, vocab, vocab_size, vocab_check)
+            input_data2 = encode_data(x_sample[:, 2], maxlen, vocab, vocab_size, vocab_check)
+            
+            input_data = [input_data0, input_data1, input_data2]
             y_for_fitting = encode_data(y_sample, maxlen, vocab, vocab_size, vocab_check)
 
             yield (input_data, y_for_fitting, x_sample, y_sample)
