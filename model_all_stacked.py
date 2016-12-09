@@ -1,93 +1,126 @@
 # coding:utf-8
 
-from keras.layers import Input, LSTM, merge, Dense
-from keras.layers.core import RepeatVector
-from keras.layers.recurrent import SimpleRNN
+from keras.layers import *
 from keras.models import Model
 from keras.optimizers import Adam
 
 
-def construct_model(maxlen, input_dimension, output_dimension, lstm_vector_output_dim, lr=0.001):
+def construct_model(maxlen, output_dimension, n_hidden, optimizer):
     """
     Склеены три слова
     """
-    input = Input(shape=(maxlen, input_dimension), name='input')
+    input_dimension = 3 * output_dimension
 
-    lstm_encode = LSTM(lstm_vector_output_dim, activation='relu')(input)
-    #lstm_encode = SimpleRNN(lstm_vector_output_dim, activation='relu')(input)
+    input = Input(shape=(maxlen, input_dimension), name='input')
+    lstm_encode = LSTM(n_hidden, activation='relu')(input)
 
     encoded_copied = RepeatVector(n=maxlen)(lstm_encode)
-
-    lstm_decode = LSTM(output_dim=output_dimension, return_sequences=True, activation='softmax')(encoded_copied)
-    #lstm_decode = SimpleRNN(output_dim=output_dimension, return_sequences=True, activation='softmax')(encoded_copied)
+    lstm_decode = LSTM(output_dim=output_dimension, return_sequences=True,
+                       activation='softmax')(encoded_copied)
 
     encoder = Model(input, lstm_decode)
-
-    adam = Adam(lr=lr)
-    encoder.compile(loss='categorical_crossentropy', optimizer=adam)
+    encoder.compile(loss='categorical_crossentropy', optimizer=optimizer)
 
     return encoder
 
 
-def construct_simpliest_model(maxlen, input_dimension, output_dimension, lstm_vector_output_dim):
+def construct_simpliest_model(maxlen, output_dimension, n_hidden, n_layers, optimizer):
     """
-    Простейшая RNN последовательность -> последовательность
+    Простейшая LSTM последовательность -> последовательность
     """
-    input = Input(shape=(maxlen, input_dimension), name='input')
+    input_dimension = 3 * output_dimension
 
-    lstm_encode = SimpleRNN(output_dimension, return_sequences=True)(input)
+    lstm_encode = Input(shape=(maxlen, input_dimension), name='input')
+    for _ in xrange(n_layers - 1):
+        lstm_encode = LSTM(n_hidden, return_sequences=True,
+                           activation="relu")(lstm_encode)
+    lstm_encode = LSTM(output_dimension, return_sequences=True,
+                       activation="softmax")(lstm_encode)
 
     encoder = Model(input, lstm_encode)
-
-    adam = Adam()
-    encoder.compile(loss='mse', optimizer=adam)
+    encoder.compile(loss='categorical_crossentropy', optimizer=optimizer)
 
     return encoder
 
 
-def construct_multilayer_model(maxlen, input_dimension, output_dimension, lstm_vector_output_dim, lr=0.001, clipnorm=10.0):
+def construct_complex_model(maxlen, output_dimension, n_hidden, optimizer):
     """
-    Склеены три слова
-    Несколько слоев
+    Каждое слово LSTM-> в вектор -> конкатенировать вектора LSTM-> выход
     """
-    input = Input(shape=(maxlen, input_dimension), name='input')
+    input_dimension = output_dimension
 
-    lstm_encode = input
-    lstm_encode = LSTM(lstm_vector_output_dim, return_sequences=True, activation='relu')(lstm_encode)
-    lstm_encode = LSTM(lstm_vector_output_dim, return_sequences=True, activation='relu')(lstm_encode)
-    lstm_encode = LSTM(lstm_vector_output_dim, activation='relu')(lstm_encode)
-    
-    encoded_copied = RepeatVector(n=maxlen)(lstm_encode)
-
-    lstm_decode = encoded_copied
-    lstm_decode = LSTM(output_dim=output_dimension, return_sequences=True, activation='relu')(lstm_decode)
-    lstm_decode = LSTM(output_dim=output_dimension, return_sequences=True, activation='relu')(lstm_decode)
-    lstm_decode = LSTM(output_dim=output_dimension, return_sequences=True, activation='softmax')(lstm_decode)
-    
-    encoder = Model(input, lstm_decode)
-
-    adam = Adam(lr=lr, clipnorm=clipnorm)
-    encoder.compile(loss='categorical_crossentropy', optimizer=adam)
-
-    return encoder
-
-
-def construct_complex_model(maxlen, input_dimension, lstm_vector_output_dim, n_hidden, lr=0.001, clipnorm=10.0):
     input1 = Input(shape=(maxlen, input_dimension))
     input2 = Input(shape=(maxlen, input_dimension))
     input3 = Input(shape=(maxlen, input_dimension))
-    
-    lstm_encode1 = LSTM(lstm_vector_output_dim, activation='relu')(input1)
-    lstm_encode2 = LSTM(lstm_vector_output_dim, activation='relu')(input2)
-    lstm_encode3 = LSTM(lstm_vector_output_dim, activation='relu')(input3)
-    
+
+    lstm_encode1 = LSTM(n_hidden, activation='relu')(input1)
+    lstm_encode2 = LSTM(n_hidden, activation='relu')(input2)
+    lstm_encode3 = LSTM(n_hidden, activation='relu')(input3)
+
     encode = merge([lstm_encode1, lstm_encode2, lstm_encode3], mode="concat")
-    hidden = Dense(n_hidden, activation="relu")(encode)
-    hidden_copied = RepeatVector(n=maxlen)(hidden)
-    out = LSTM(output_dim=input_dimension, return_sequences=True, activation='softmax')(hidden_copied)
-    
+    hidden_copied = RepeatVector(n=maxlen)(encode)
+    out = LSTM(output_dim=output_dimension, return_sequences=True,
+               activation='softmax')(hidden_copied)
+
     encoder = Model([input1, input2, input3], out)
-    adam = Adam(lr=lr, clipnorm=clipnorm)
-    encoder.compile(loss='categorical_crossentropy', optimizer=adam)
+    encoder.compile(loss='categorical_crossentropy', optimizer=optimizer)
 
     return encoder
+
+
+def construct_generatorlike_model(maxlen, output_dimension, sub_length, n_hidden, optimizer):
+    """
+    Каждое слово LSTM-> в вектор -> конкатенировать вектора - concat LSTM-> выход
+                              sub_length предыдущих символов/
+    """
+    input_dimension = output_dimension
+
+    input1 = Input(shape=(maxlen, input_dimension))
+    input2 = Input(shape=(maxlen, input_dimension))
+    input3 = Input(shape=(maxlen, input_dimension))
+    input4 = Input(shape=(sub_length, input_dimension))
+
+    lstm_encode1 = LSTM(n_hidden, activation='relu', return_sequences=False)(input1)
+    lstm_encode2 = LSTM(n_hidden, activation='relu', return_sequences=False)(input2)
+    lstm_encode3 = LSTM(n_hidden, activation='relu', return_sequences=False)(input3)
+
+    encode = merge([lstm_encode1, lstm_encode2, lstm_encode3], mode="concat")
+
+    hidden_copied = RepeatVector(n=sub_length)(encode)
+    # (sub_length, 3 * n_hidden + input_dimension)
+    merged = merge([hidden_copied, input4], mode="concat", concat_axis=2)
+    merged = TimeDistributed(Dense(n_hidden, activation='relu'))(merged)
+    out = LSTM(output_dim=output_dimension, return_sequences=True,
+               activation='softmax', input_length=sub_length)(merged)
+
+    encoder = Model([input1, input2, input3, input4], out)
+    encoder.compile(loss='categorical_crossentropy', optimizer=optimizer)
+
+    return encoder
+
+
+def construct_cnn_model(maxlen, output_dimension,
+                        nb_filter, n_hidden, max_filter_size,
+                        optimizer):
+    """
+    Каждое слово CNN-> в вектор -> конкатенировать вектора LSTM-> выход
+    """
+    input_dimension = output_dimension
+
+    input1 = Input(shape=(maxlen, input_dimension))
+    input2 = Input(shape=(maxlen, input_dimension))
+    input3 = Input(shape=(maxlen, input_dimension))
+
+    lengths = list(range(1, max_filter_size + 1))
+    encode1 = merge([Flatten()(Convolution1D(nb_filter * l, l)(input1)) for l in lengths], mode="concat")
+    encode2 = merge([Flatten()(Convolution1D(nb_filter * l, l)(input2)) for l in lengths], mode="concat")
+    encode3 = merge([Flatten()(Convolution1D(nb_filter * l, l)(input3)) for l in lengths], mode="concat")
+
+    encode = merge([encode1, encode2, encode3], mode="concat")
+    decode = Dense(n_hidden)(encode)
+    out = Reshape((maxlen, output_dimension))(Dense((maxlen * output_dimension))(decode))
+
+    model = Model([input1, input2, input3], out)
+    model.compile(loss='categorical_crossentropy', optimizer=optimizer)
+
+    return model

@@ -67,7 +67,7 @@ def encode_data(x, maxlen, vocab, vocab_size, check):
         while counter < maxlen:
             sent_array[counter, :] = char_array
             counter += 1
-            
+
         input_data[dix, :, :] = sent_array
 
     return input_data
@@ -132,7 +132,7 @@ def simple_batch_generator(filename, vocab, vocab_size, vocab_check, maxlen, bat
             input_data0 = encode_data(x_sample[:, 0], maxlen, vocab, vocab_size, vocab_check)
             input_data1 = encode_data(x_sample[:, 1], maxlen, vocab, vocab_size, vocab_check)
             input_data2 = encode_data(x_sample[:, 2], maxlen, vocab, vocab_size, vocab_check)
-            
+
             input_data = np.concatenate([input_data0, input_data1, input_data2], axis=2)
             y_for_fitting = encode_data(y_sample, maxlen, vocab, vocab_size, vocab_check)
 
@@ -162,11 +162,47 @@ def complex_batch_generator(filename, vocab, vocab_size, vocab_check, maxlen, ba
             input_data0 = encode_data(x_sample[:, 0], maxlen, vocab, vocab_size, vocab_check)
             input_data1 = encode_data(x_sample[:, 1], maxlen, vocab, vocab_size, vocab_check)
             input_data2 = encode_data(x_sample[:, 2], maxlen, vocab, vocab_size, vocab_check)
-            
+
             input_data = [input_data0, input_data1, input_data2]
             y_for_fitting = encode_data(y_sample, maxlen, vocab, vocab_size, vocab_check)
 
             yield (input_data, y_for_fitting, x_sample, y_sample)
+
+
+def generatorlike_batch_generator(filename, vocab, vocab_size, vocab_check, maxlen,
+                                  batch_size, sub_length):
+    with codecs.open(filename, "rt", encoding="utf-8") as data:
+        run = True
+        while run:
+            x_sample = np.zeros((batch_size, 3), dtype=np.object)
+            y_sample = np.zeros((batch_size,),   dtype=np.object)
+            for i in range(batch_size):
+                line = data.readline()
+                if line:
+                    words = line.strip("\n").split(",")
+                    x_sample[i] = words[:3]
+                    y_sample[i] = words[3]
+                else:
+                    run = False
+                    break
+            if not run:
+                break
+
+            input_data1 = encode_data(x_sample[:, 0], maxlen, vocab, vocab_size, vocab_check)
+            input_data2 = encode_data(x_sample[:, 1], maxlen, vocab, vocab_size, vocab_check)
+            input_data3 = encode_data(x_sample[:, 2], maxlen, vocab, vocab_size, vocab_check)
+
+
+            y_for_fitting = encode_data(y_sample, maxlen, vocab, vocab_size, vocab_check)
+            for shift in xrange(1, maxlen - sub_length):
+                input_data4 = np.zeros((batch_size, sub_length, vocab_size))
+                y           = np.zeros((batch_size, sub_length, vocab_size))
+                for i in xrange(batch_size):
+                    input_data4[i] = y_for_fitting[i][shift: shift + sub_length]
+                    y[i]           = y_for_fitting[i][shift: shift + sub_length]
+
+                input_data = [input_data1, input_data2, input_data3, input_data4]
+                yield (input_data, y, x_sample, y_sample)
 
 
 # In[11]:
@@ -199,4 +235,3 @@ def complex_batch_generator(filename, vocab, vocab_size, vocab_check, maxlen, ba
 
 # if __name__ == '__main__':
 #     prepare_relations("data/relations.pairs.test.tsv")
-
