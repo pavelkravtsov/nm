@@ -42,8 +42,8 @@ parser.add_argument('--epochs', type=int,
                     help='default=50; epochs count')
 
 parser.add_argument('--maxlen', type=int,
-                    default=25,
-                    help='default=25; max sequence length')
+                    default=10,
+                    help='default=10; max sequence length')
 
 parser.add_argument('--gpu_fraction', type=float,
                     default=0.2,
@@ -56,11 +56,32 @@ parser.add_argument('--model_type',
 
 parser.add_argument('--show_step',
                     default=10,
-                    type=int)
+                    type=int,
+                    help="show step")
+
 parser.add_argument('--break_step',
                     default=1000,
-                    type=int)
+                    type=int,
+                    help="break step")
 
+parser.add_argument('--n_layers',
+                    default=1,
+                    type=int,
+                    help='number of layers')
+
+parser.add_argument('--n_hidden',
+                    default=64,
+                    type=int,
+                    help='number of hidden neurals')
+
+parser.add_argument('--clipnorm',
+                    default=0,
+                    type=int,
+                    help="clipnorm")
+
+parser.add_argument('--activation',
+                    default="relu",
+                    choices=["relu", "sigmoid"])
 
 args = parser.parse_args()
 
@@ -81,13 +102,14 @@ break_step = args.break_step
 inf = 1000000
 
 model_type = args.model_type   # number of model
-clipnorm = None
+clipnorm = args.clipnorm
 
-N_LAYERS = 3   # number of layers
-n_hidden = 64
+N_LAYERS = args.n_layers
+n_hidden = args.n_hidden
 SUB_LENGTH = 3 # for generatorlike
 nb_filter = 30
-max_filter_size = 7
+max_filter_size = 5
+activation = args.activation
 
 # ## Загрузка модели
 
@@ -97,18 +119,18 @@ vocab, reverse_vocab, vocab_size, check = data_helpers.create_vocab_set()
 lg.info('Build model...')
 optimizer = Adam(clipnorm=clipnorm) if clipnorm else Adam()
 
-if model_type == 'simpliest':
+if model_type == 'simple':
     mini_batch_generator = data_helpers.simple_batch_generator
     predict = lambda x, n: model.predict(np.array([x[n]]))
     model = model_all_stacked.construct_model(maxlen, vocab_size,
                                               n_hidden,
                                               optimizer)
-elif model_type == 'simple':
+elif model_type == 'simpliest':
     mini_batch_generator = data_helpers.simple_batch_generator
     predict = lambda x, n: model.predict(np.array([x[n]]))
     model = model_all_stacked.construct_simpliest_model(maxlen, vocab_size,
                                                         n_hidden, N_LAYERS,
-                                                        optimizer)
+                                                        optimizer, activation)
 elif model_type == 'complex':
     mini_batch_generator = data_helpers.complex_batch_generator
     predict = lambda x, n: model.predict([np.array([x[0][n]]),
@@ -120,7 +142,9 @@ elif model_type == 'complex':
 elif model_type == 'generatorlike':
     mini_batch_generator = partial(data_helpers.generatorlike_batch_generator,
                                    sub_length=SUB_LENGTH)
-    predict = lambda x, n: ""
+    def predict(x, n):
+        return None
+    
     model = model_all_stacked.construct_generatorlike_model(maxlen, vocab_size,
                                                             SUB_LENGTH, n_hidden,
                                                             optimizer)
@@ -136,6 +160,13 @@ else:
     raise NotImplementedError()
 
 # ## Mainloop
+def tensor_size(shape):
+    res = 1
+    for size in shape:
+        res *= size
+    return res
+
+
 lg.info('Fit model...')
 initial = datetime.datetime.now()
 lg.info("model have {} parameters".format(sum(tensor_size(t.shape) for t in model.get_weights())))
@@ -153,34 +184,41 @@ def train(batches, break_num=inf):
             lg.info('TRAIN step {}\tloss {}\tavg {}'.format(step, f, loss_avg))
         step += 1
 
-def test(test_batches, break_num=inf):
+def test(break_num=inf):
+
     loss = 0.0
     step = 0
-    for x_test_batch, y_test_batch, x_text, y_text in test_batches:
-        if step % break_num == 0:
-            yield
-        f_ev = model.test_on_batch(x_test_batch, y_test_batch)
-        loss += f_ev
-        loss_avg = loss / step
-        step += 1
+    while True:
+        test_batches = mini_batch_generator(test_file,
+                                    vocab, vocab_size, check, maxlen,
+                                    batch_size=test_batch_size)
 
-        n = randrange(len(x_test_batch))
-        predicted_seq = predict(x_test_batch, n)
-        lg.info('TEST step {}\tloss {}\t avg {}'.format(step, f_ev, loss_avg))
-        # lg.info('Shapes x {} y_true {} y_pred {}'.format(
-        #         x_test_batch[0].shape,
-        #         y_test_batch[0].shape,
-        #         predicted_seq[0].shape))
-        lg.info(u'Input:     \t[' + u" | ".join(map(lambda x:x[:maxlen], list(x_text[n]))) + u"]")
-        lg.info(u'Expected:  \t[' + y_text[n] + u"]")
-        lg.info(u'Predicted: \t[' + data_helpers.decode_data(predicted_seq, reverse_vocab) + u"]")
-        lg.info('----------------------------------------------------------------')
+        for x_test_batch, y_test_batch, x_text, y_text in test_batches:
+            if step % break_num == 0:
+                yield
+            f_ev = model.test_on_batch(x_test_batch, y_test_batch)
+            loss += f_ev
+            loss_avg = loss / step
+            step += 1
 
-def tensor_size(shape):
-    res = 1
-    for size in shape:
-        res *= size
-    return res
+            n = randrange(len(x_test_batch))
+            predicted_seq = predict(x_test_batch, n)
+            # lg.info('TEST step {}\tloss {}\t avg {}'.format(step, f_ev, loss_avg))
+            # lg.info('Shapes x {} y_true {} y_pred {}'.format(
+            #         x_test_batch[0].shape,
+            #         y_test_batch[0].shape,
+            #         predicted_seq[0].shape))
+            #lg.info(u'Input:     \t[' + u" | ".join(map(lambda x:x[:maxlen], list(x_text[n]))) + u"]")
+            #lg.info(u'Expected:  \t[' + y_text[n] + u"]")
+            #lg.info(u'Predicted: \t[' + data_helpers.decode_data(predicted_seq, reverse_vocab) + u"]")
+            lg.info(predicted_seq)
+            lg.info(x_test_batch[n])
+            lg.info( u'[' + data_helpers.decode_data(predicted_seq, reverse_vocab) + u"]" + \
+                    '\t[' + u" | ".join(map(lambda x:x[:maxlen], list(x_text[n]))) +  \
+                    ' | ' + y_text[n] + u"]")
+            lg.info('----------------------------------------------------------------')
+
+
 
 for e in xrange(nb_epoch):
     lg.info('-------- epoch {} --------'.format(e))
@@ -190,18 +228,15 @@ for e in xrange(nb_epoch):
                                    vocab, vocab_size, check, maxlen,
                                    batch_size=batch_size)
 
-    test_batches = mini_batch_generator(test_file,
-                                        vocab, vocab_size, check, maxlen,
-                                        batch_size=test_batch_size)
-
-    test_iter = test(test_batches, 10)
+    
+    test_iter = test(10)
     for _ in train(batches, break_step):
         next(test_iter)
 
     stop = datetime.datetime.now()
     e_elap = stop - start
     t_elap = stop - initial
-    lg.info('Epoch {}. Loss: {}\nEpoch time: {}. Total time: {}\n'.format(e, test_loss, e_elap, t_elap))
+    lg.info('Epoch {}. \nEpoch time: {}. Total time: {}\n'.format(e, e_elap, t_elap))
 
     # lg.info("Saving weights")
     # model_info = "{}_{}_{}".format(str(stop.date()), e, NUM)

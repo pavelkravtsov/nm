@@ -24,21 +24,22 @@ def construct_model(maxlen, output_dimension, n_hidden, optimizer):
     return encoder
 
 
-def construct_simpliest_model(maxlen, output_dimension, n_hidden, n_layers, optimizer):
+def construct_simpliest_model(maxlen, output_dimension, n_hidden, n_layers, optimizer, activation):
     """
     Простейшая LSTM последовательность -> последовательность
     """
     input_dimension = 3 * output_dimension
 
-    lstm_encode = Input(shape=(maxlen, input_dimension), name='input')
+    input = Input(shape=(maxlen, input_dimension), name='input')
+    lstm_encode = input
     for _ in xrange(n_layers - 1):
-        lstm_encode = LSTM(n_hidden, return_sequences=True,
-                           activation="relu")(lstm_encode)
+        lstm_encode = Dropout(p=0.5)(LSTM(n_hidden, return_sequences=True,
+                           activation=activation)(lstm_encode))
     lstm_encode = LSTM(output_dimension, return_sequences=True,
                        activation="softmax")(lstm_encode)
 
     encoder = Model(input, lstm_encode)
-    encoder.compile(loss='categorical_crossentropy', optimizer=optimizer)
+    encoder.compile(loss='mse', optimizer=optimizer)
 
     return encoder
 
